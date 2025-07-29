@@ -1,66 +1,94 @@
-import React, { useState } from 'react';
-import { Form, Input, Button, Card, Select, message, Progress, Alert } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, Card, Alert, Progress, Select, message, Row, Col } from 'antd';
+import { UserOutlined, LockOutlined, MailOutlined, EyeTwoTone, EyeInvisibleOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
+import { BehaviorTemplate, KeystrokeData, MouseData, RegisterRequest, UserRole } from '../types';
+import { authAPI, handleApiError } from '../utils/api';
 
 const { Option } = Select;
 
-interface RegisterForm {
-  username: string;
-  email: string;
-  password: string;
+interface RegisterForm extends RegisterRequest {
   confirmPassword: string;
-  role: string;
   inviteCode?: string;
 }
 
 const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [behaviorCollecting, setBehaviorCollecting] = useState(false);
-  const [behaviorProgress, setBehaviorProgress] = useState(0);
+  // 移除行为特征采集相关状态
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailVerifyId, setEmailVerifyId] = useState<string>('');
+  const [countdown, setCountdown] = useState(0);
   const navigate = useNavigate();
   const [form] = Form.useForm();
 
-  // 模拟行为特征采集
-  const startBehaviorCollection = () => {
-    setBehaviorCollecting(true);
-    setBehaviorProgress(0);
-    
-    const interval = setInterval(() => {
-      setBehaviorProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setBehaviorCollecting(false);
-          message.success('行为特征采集完成！');
-          return 100;
-        }
-        return prev + 10;
+  // 发送邮箱验证码
+  const sendEmailCode = async () => {
+    const email = form.getFieldValue('email');
+    if (!email) {
+      message.error('请先输入邮箱地址');
+      return;
+    }
+
+    setEmailLoading(true);
+    try {
+      const response = await authAPI.sendEmailCode({
+        email: email,
+        purpose: 'register'
       });
-    }, 300);
+      setEmailVerifyId(response.verifyId);
+      message.success('验证码已发送到您的邮箱');
+      
+      // 开始倒计时
+      setCountdown(60);
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (error) {
+      message.error('发送验证码失败');
+    } finally {
+      setEmailLoading(false);
+    }
   };
 
+  // 移除行为特征采集函数
+
   const onFinish = async (values: RegisterForm) => {
+    if (!emailVerifyId) {
+      message.error('请先获取邮箱验证码');
+      return;
+    }
+
     setLoading(true);
     try {
-      // 检查密码确认
-      if (values.password !== values.confirmPassword) {
-        message.error('两次输入的密码不一致！');
-        return;
-      }
+      // 准备注册数据
+      const registerData: RegisterRequest = {
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        confirmPassword: values.confirmPassword,
+        role: values.role === 'participant' ? UserRole.USER : 
+              values.role === 'organizer' ? UserRole.MODERATOR : UserRole.USER,
+        inviteCode: values.inviteCode,
+        emailVerifyId: emailVerifyId,
+        emailCode: values.emailCode
+      };
 
-      // 检查行为特征是否采集完成
-      if (behaviorProgress < 100) {
-        message.warning('请先完成行为特征采集！');
-        return;
-      }
-
-      // 模拟注册API调用
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 调用注册API
+      const response = await authAPI.register(registerData);
       
-      message.success('注册成功！请登录您的账号。');
-      navigate('/login');
+      message.success('注册成功！正在跳转到登录页面...');
+      
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
     } catch (error) {
-      message.error('注册失败，请重试！');
+      handleApiError(error, '注册失败');
     } finally {
       setLoading(false);
     }
@@ -70,12 +98,22 @@ const Register: React.FC = () => {
     if (!value) {
       return Promise.reject(new Error('请输入密码！'));
     }
-    if (value.length < 8) {
-      return Promise.reject(new Error('密码至少8个字符！'));
+    if (value.length < 9 || value.length > 20) {
+      return Promise.reject(new Error('密码长度必须为9-20个字符！'));
     }
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) {
-      return Promise.reject(new Error('密码必须包含大小写字母和数字！'));
+    
+    // 检查密码复杂度：至少包含大小写字母、符号、数字四种中的三种
+    const hasLowerCase = /[a-z]/.test(value);
+    const hasUpperCase = /[A-Z]/.test(value);
+    const hasNumbers = /\d/.test(value);
+    const hasSymbols = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value);
+    
+    const complexityCount = [hasLowerCase, hasUpperCase, hasNumbers, hasSymbols].filter(Boolean).length;
+    
+    if (complexityCount < 3) {
+      return Promise.reject(new Error('密码必须至少包含大小写字母、符号、数字四种中的三种！'));
     }
+    
     return Promise.resolve();
   };
 
@@ -97,7 +135,7 @@ const Register: React.FC = () => {
             CTF防作弊平台
           </h1>
           <p className="text-gray-600 dark:text-gray-300">
-            注册账号并完成行为特征采集
+            注册账号参加CTF竞赛
           </p>
         </div>
 
@@ -111,14 +149,7 @@ const Register: React.FC = () => {
             </p>
           </div>
 
-          {/* 行为特征采集提示 */}
-          <Alert
-            message="行为特征采集"
-            description="为了确保比赛的公平性，我们需要采集您的键击和鼠标行为特征作为身份验证的依据。"
-            type="info"
-            showIcon
-            className="mb-6"
-          />
+
 
           <Form
             form={form}
@@ -156,6 +187,32 @@ const Register: React.FC = () => {
                 placeholder="请输入邮箱地址"
                 autoComplete="email"
               />
+            </Form.Item>
+
+            {/* 邮箱验证码 */}
+            <Form.Item
+              name="emailCode"
+              label="邮箱验证码"
+              rules={[{ required: true, message: '请输入邮箱验证码！' }]}
+            >
+              <Row gutter={8}>
+                <Col span={14}>
+                  <Input
+                    prefix={<MailOutlined className="text-gray-400" />}
+                    placeholder="请输入邮箱验证码"
+                  />
+                </Col>
+                <Col span={10}>
+                  <Button
+                    onClick={sendEmailCode}
+                    loading={emailLoading}
+                    disabled={countdown > 0}
+                    className="w-full"
+                  >
+                    {countdown > 0 ? `${countdown}s` : '获取验证码'}
+                  </Button>
+                </Col>
+              </Row>
             </Form.Item>
 
             <Form.Item
@@ -204,40 +261,13 @@ const Register: React.FC = () => {
               />
             </Form.Item>
 
-            {/* 行为特征采集区域 */}
-            <div className="mb-6 p-4 border border-dashed border-gray-300 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                行为特征采集
-              </h4>
-              {!behaviorCollecting && behaviorProgress === 0 && (
-                <Button 
-                  type="dashed" 
-                  onClick={startBehaviorCollection}
-                  className="w-full"
-                >
-                  开始采集行为特征
-                </Button>
-              )}
-              {(behaviorCollecting || behaviorProgress > 0) && (
-                <div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    {behaviorCollecting ? '正在采集行为特征...' : '行为特征采集完成'}
-                  </div>
-                  <Progress 
-                    percent={behaviorProgress} 
-                    status={behaviorCollecting ? 'active' : 'success'}
-                    strokeColor={behaviorProgress === 100 ? '#52c41a' : '#1890ff'}
-                  />
-                </div>
-              )}
-            </div>
+
 
             <Form.Item>
               <Button
                 type="primary"
                 htmlType="submit"
                 loading={loading}
-                disabled={behaviorProgress < 100}
                 className="w-full h-12 text-lg font-medium"
               >
                 {loading ? '注册中...' : '注册账号'}

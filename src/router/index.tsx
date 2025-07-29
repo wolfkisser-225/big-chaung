@@ -11,6 +11,7 @@ import Profile from '../pages/Profile';
 import Features from '../pages/Features';
 import Training from '../pages/Training';
 import Leaderboard from '../pages/Leaderboard';
+import ContestPreparation from '../pages/ContestPreparation';
 
 // 404页面组件
 const NotFound: React.FC = () => {
@@ -129,6 +130,7 @@ const AppRouter: React.FC = () => {
         <Route index element={<Home />} />
         <Route path="contests" element={<Contest />} />
         <Route path="contests/:id" element={<ContestDetail />} />
+        <Route path="contests/:contestId/preparation" element={<ContestPreparation />} />
         <Route path="challenges/:id" element={<ChallengeDetail />} />
         <Route path="training" element={<Training />} />
         <Route path="leaderboard" element={<Leaderboard />} />
