@@ -14,16 +14,44 @@ export interface User {
   avatar?: string;
   createdAt: string;
   behaviorTemplate?: BehaviorTemplate;
+  preferences?: {
+    theme: 'light' | 'dark';
+    language: string;
+    notifications: boolean;
+  };
+  school?: string;
+  major?: string;
+  grade?: string;
+  bio?: string;
+  totalScore: number;
+  solvedChallenges: number;
+  participatedContests: number;
+  ranking: number;
+  registrationTime: string;
+  lastLoginTime: string;
 }
 
 // 行为特征模板
 export interface BehaviorTemplate {
   id: string;
   userId: string;
-  keystrokeDynamics: KeystrokeData[];
-  mouseTrajectory: MouseData[];
+  keystrokeDynamics: KeystrokeData[] & {
+    avgDwellTime: number;
+    avgFlightTime: number;
+    typingRhythm: number;
+    pressureVariation: number;
+  };
+  mouseTrajectory: MouseData[] & {
+    avgSpeed: number;
+    acceleration: number;
+    clickPattern: number;
+    movementSmoothing: number;
+  };
   createdAt: string;
   updatedAt: string;
+  isActive: boolean;
+  sampleCount: number;
+  accuracy: number;
 }
 
 // 键击动态数据
@@ -73,15 +101,19 @@ export interface Challenge {
   id: string;
   title: string;
   description: string;
+  content?: string;
   type: ChallengeType;
+  category: string;
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
   solvedCount: number;
+  totalAttempts: number;
   attachments: string[];
   hints: string[];
   contestId: string;
   isActive: boolean;
   createdAt: string;
+  tags: string[];
 }
 
 // Flag提交记录
@@ -94,14 +126,34 @@ export interface Submission {
   submittedAt: string;
   behaviorData: BehaviorData;
   blockchainHash?: string;
+  behaviorScore: number;
+  submissionTime: string;
+  verificationStatus: 'verified' | 'failed' | 'pending';
 }
+
+// Flag提交记录别名
+export type FlagSubmission = Submission;
 
 // 行为数据
 export interface BehaviorData {
   keystrokePattern: KeystrokeData[];
+  keystrokeDynamics: {
+    avgDwellTime: number;
+    avgFlightTime: number;
+    typingRhythm: number;
+    pressureVariation: number;
+  };
   mousePattern: MouseData[];
+  mouseTrajectory: {
+    avgSpeed: number;
+    acceleration: number;
+    clickPattern: number;
+    movementSmoothing: number;
+  };
   sessionId: string;
   timestamp: string;
+  anomalyDetected: boolean;
+  riskScore: number;
 }
 
 // 排行榜条目
@@ -112,6 +164,7 @@ export interface LeaderboardEntry {
   score: number;
   solvedChallenges: number;
   lastSubmission: string;
+  lastSubmissionTime: string;
 }
 
 // API响应格式

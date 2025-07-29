@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Button, Tag, Tabs, Table, Progress, Statistic, Avatar, Timeline, Alert, Space, Divider, Typography, Badge } from 'antd';
 import { TrophyOutlined, UserOutlined, ClockCircleOutlined, FlagOutlined, TeamOutlined, StarOutlined, WarningOutlined, CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import type { Contest, Challenge, LeaderboardEntry } from '../types';
+import { ChallengeType } from '../types';
 import dayjs from 'dayjs';
 
 const { TabPane } = Tabs;
@@ -65,66 +66,86 @@ const ContestDetail: React.FC = () => {
       id: 'web1',
       title: 'SQL注入基础',
       description: '发现并利用SQL注入漏洞获取敏感信息',
+      type: ChallengeType.WEB,
       category: 'web',
       difficulty: 'easy',
       points: 100,
       solvedCount: 156,
       totalAttempts: 324,
+      attachments: [],
+      hints: ['尝试在输入框中输入特殊字符'],
       tags: ['SQL注入', 'Web安全'],
       isActive: true,
-      contestId: id || '1'
+      contestId: id || '1',
+      createdAt: '2025-01-01T00:00:00Z'
     },
     {
       id: 'crypto1',
       title: '古典密码破解',
       description: '破解一个经典的替换密码',
+      type: ChallengeType.CRYPTO,
       category: 'crypto',
       difficulty: 'easy',
       points: 120,
       solvedCount: 89,
       totalAttempts: 234,
+      attachments: ['cipher.txt'],
+      hints: ['这是一个简单的替换密码'],
       tags: ['古典密码', '密码学'],
       isActive: true,
-      contestId: id || '1'
+      contestId: id || '1',
+      createdAt: '2025-01-01T00:00:00Z'
     },
     {
       id: 'reverse1',
       title: '简单逆向',
       description: '分析二进制文件找到隐藏的Flag',
+      type: ChallengeType.REVERSE,
       category: 'reverse',
       difficulty: 'medium',
       points: 200,
       solvedCount: 45,
       totalAttempts: 156,
+      attachments: ['challenge.exe'],
+      hints: ['使用反汇编工具分析程序'],
       tags: ['逆向工程', '二进制分析'],
       isActive: true,
-      contestId: id || '1'
+      contestId: id || '1',
+      createdAt: '2025-01-01T00:00:00Z'
     },
     {
       id: 'web2',
       title: 'XSS漏洞利用',
       description: '构造XSS payload获取管理员Cookie',
+      type: ChallengeType.WEB,
       category: 'web',
       difficulty: 'medium',
       points: 250,
       solvedCount: 34,
       totalAttempts: 123,
+      attachments: [],
+      hints: ['尝试在评论区输入JavaScript代码'],
       tags: ['XSS', 'Web安全'],
       isActive: true,
-      contestId: id || '1'
+      contestId: id || '1',
+      createdAt: '2025-01-01T00:00:00Z'
     },
     {
       id: 'crypto2',
       title: 'RSA密码分析',
       description: '分析RSA加密实现中的漏洞',
+      type: ChallengeType.CRYPTO,
       category: 'crypto',
       difficulty: 'hard',
       points: 400,
       solvedCount: 12,
       totalAttempts: 67,
+      attachments: ['rsa_challenge.py'],
+      hints: ['检查RSA参数的生成过程'],
       tags: ['RSA', '密码学', '数学'],
       isActive: true,
-      contestId: id || '1'
+      contestId: id || '1',
+      createdAt: '2025-01-01T00:00:00Z'
     }
   ];
 
@@ -136,6 +157,7 @@ const ContestDetail: React.FC = () => {
       username: 'CyberMaster',
       score: 870,
       solvedChallenges: 4,
+      lastSubmission: '2025-03-15 15:30:00',
       lastSubmissionTime: '2025-03-15 15:30:00'
     },
     {
@@ -144,6 +166,7 @@ const ContestDetail: React.FC = () => {
       username: 'SecurityPro',
       score: 720,
       solvedChallenges: 3,
+      lastSubmission: '2025-03-15 14:45:00',
       lastSubmissionTime: '2025-03-15 14:45:00'
     },
     {
@@ -152,6 +175,7 @@ const ContestDetail: React.FC = () => {
       username: 'HackTheBox',
       score: 670,
       solvedChallenges: 3,
+      lastSubmission: '2025-03-15 16:10:00',
       lastSubmissionTime: '2025-03-15 16:10:00'
     },
     {
@@ -160,6 +184,7 @@ const ContestDetail: React.FC = () => {
       username: 'CryptoNinja',
       score: 520,
       solvedChallenges: 2,
+      lastSubmission: '2025-03-15 13:20:00',
       lastSubmissionTime: '2025-03-15 13:20:00'
     },
     {
@@ -168,6 +193,7 @@ const ContestDetail: React.FC = () => {
       username: 'WebHacker',
       score: 350,
       solvedChallenges: 2,
+      lastSubmission: '2025-03-15 15:55:00',
       lastSubmissionTime: '2025-03-15 15:55:00'
     }
   ];

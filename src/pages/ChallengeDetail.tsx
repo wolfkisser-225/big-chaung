@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Button, Tag, Input, Form, Alert, Progress, Statistic, Timeline, Modal, Typography, Space, Divider, Badge } from 'antd';
 import { FlagOutlined, ClockCircleOutlined, UserOutlined, CheckCircleOutlined, WarningOutlined, EyeOutlined, SendOutlined, HistoryOutlined, SafetyOutlined } from '@ant-design/icons';
 import type { Challenge, FlagSubmission, BehaviorData } from '../types';
+import { ChallengeType } from '../types';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -27,14 +28,17 @@ const ChallengeDetail: React.FC = () => {
     id: id || 'web1',
     title: 'SQL注入基础',
     description: '这是一个经典的SQL注入挑战。你需要利用SQL注入漏洞来获取数据库中的敏感信息。目标是找到隐藏在数据库中的Flag。',
+    type: ChallengeType.WEB,
     category: 'web',
     difficulty: 'easy',
     points: 100,
     solvedCount: 156,
     totalAttempts: 324,
+    attachments: [],
     tags: ['SQL注入', 'Web安全', '数据库'],
     isActive: true,
     contestId: 'contest1',
+    createdAt: '2025-03-10 10:00:00',
     content: `
 ## 挑战描述
 
@@ -78,8 +82,29 @@ const ChallengeDetail: React.FC = () => {
       challengeId: id || 'web1',
       flag: 'flag{test_flag_123}',
       isCorrect: false,
+      submittedAt: '2025-03-15 14:30:00',
       submissionTime: '2025-03-15 14:30:00',
       behaviorScore: 0.85,
+      behaviorData: {
+        keystrokePattern: [],
+        keystrokeDynamics: {
+          avgDwellTime: 110,
+          avgFlightTime: 75,
+          typingRhythm: 0.82,
+          pressureVariation: 0.10
+        },
+        mousePattern: [],
+        mouseTrajectory: {
+          avgSpeed: 240,
+          acceleration: 0.75,
+          clickPattern: 0.85,
+          movementSmoothing: 0.70
+        },
+        sessionId: 'session123',
+        timestamp: '2025-03-15 14:30:00',
+        anomalyDetected: false,
+        riskScore: 0.12
+      },
       verificationStatus: 'failed'
     },
     {
@@ -88,15 +113,36 @@ const ChallengeDetail: React.FC = () => {
       challengeId: id || 'web1',
       flag: 'flag{wrong_flag}',
       isCorrect: false,
+      submittedAt: '2025-03-15 14:25:00',
       submissionTime: '2025-03-15 14:25:00',
       behaviorScore: 0.92,
+      behaviorData: {
+        keystrokePattern: [],
+        keystrokeDynamics: {
+          avgDwellTime: 125,
+          avgFlightTime: 85,
+          typingRhythm: 0.88,
+          pressureVariation: 0.15
+        },
+        mousePattern: [],
+        mouseTrajectory: {
+          avgSpeed: 260,
+          acceleration: 0.85,
+          clickPattern: 0.95,
+          movementSmoothing: 0.80
+        },
+        sessionId: 'session123',
+        timestamp: '2025-03-15 14:25:00',
+        anomalyDetected: false,
+        riskScore: 0.08
+      },
       verificationStatus: 'failed'
     }
   ];
 
   // 模拟行为数据
   const mockBehaviorData: BehaviorData = {
-    userId: 'user1',
+    keystrokePattern: [],
     sessionId: 'session123',
     keystrokeDynamics: {
       avgDwellTime: 120,
@@ -104,6 +150,7 @@ const ChallengeDetail: React.FC = () => {
       typingRhythm: 0.85,
       pressureVariation: 0.12
     },
+    mousePattern: [],
     mouseTrajectory: {
       avgSpeed: 250,
       acceleration: 0.8,
@@ -203,8 +250,10 @@ const ChallengeDetail: React.FC = () => {
         challengeId: challenge.id,
         flag: flagInput,
         isCorrect: flagInput === 'flag{sql_injection_master}',
+        submittedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
         submissionTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
         behaviorScore: Math.random() * 0.3 + 0.7,
+        behaviorData: mockBehaviorData,
         verificationStatus: flagInput === 'flag{sql_injection_master}' ? 'verified' : 'failed'
       };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Avatar, Statistic, Progress, Table, Tag, Timeline, Tabs, Form, Input, Button, Upload, message, Alert, Badge, Space } from 'antd';
 import { UserOutlined, TrophyOutlined, FlagOutlined, ClockCircleOutlined, EditOutlined, UploadOutlined, SafetyOutlined, LineChartOutlined, HistoryOutlined, SettingOutlined } from '@ant-design/icons';
 import type { User, FlagSubmission, BehaviorTemplate, Contest } from '../types';
+import { UserRole } from '../types';
 import dayjs from 'dayjs';
 
 const { TabPane } = Tabs;
@@ -21,8 +22,9 @@ const Profile: React.FC = () => {
     id: 'admin',
     username: 'admin',
     email: 'admin@example.com',
-    role: 'admin',
+    role: UserRole.ADMIN,
     avatar: '',
+    createdAt: '2025-01-01 00:00:00',
     bio: '',
     school: '',
     major: '',
