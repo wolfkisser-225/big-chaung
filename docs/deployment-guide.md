@@ -52,8 +52,8 @@ VITE_APP_TITLE=CTF平台
 VITE_APP_VERSION=1.0.0
 
 # API 配置
-VITE_API_BASE_URL=http://localhost:3000/api
-VITE_WS_URL=ws://localhost:3000
+VITE_API_BASE_URL=http://localhost:3001/api/v1
+VITE_WS_URL=ws://localhost:3001
 
 # 功能开关
 VITE_ENABLE_BEHAVIOR_TRACKING=true
@@ -63,6 +63,14 @@ VITE_ENABLE_DEBUG=true
 # 第三方服务（开发环境可选）
 VITE_BLOCKCHAIN_NETWORK=localhost
 VITE_BLOCKCHAIN_CONTRACT_ADDRESS=
+
+# 邮件服务配置（生产环境必需）
+# 参考 EMAIL_SETUP.md 配置邮件服务
+# SMTP_HOST=smtp.qq.com
+# SMTP_PORT=587
+# SMTP_USER=your-email@qq.com
+# SMTP_PASS=your-authorization-code
+# SMTP_FROM=your-email@qq.com
 ```
 
 #### 开发工具配置
@@ -195,6 +203,89 @@ RewriteRule . /index.html [L]
     ExpiresByType image/gif "access plus 1 year"
     ExpiresByType image/svg+xml "access plus 1 year"
 </IfModule>
+```
+
+## 后端服务器部署
+
+### Go 后端服务
+
+#### 环境配置
+
+创建 `.env` 文件（生产环境）：
+
+```env
+# 数据库配置
+DATABASE_URL="root:password@tcp(localhost:3306)/ctf_platform?charset=utf8mb4&parseTime=True&loc=Local"
+
+# JWT密钥（生产环境必须更改）
+JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
+JWT_EXPIRES_IN="7d"
+
+# 应用配置
+PORT=3001
+NODE_ENV=production
+
+# 前端地址
+FRONTEND_URL="https://your-domain.com"
+
+# 文件上传配置
+UPLOAD_DIR="./uploads"
+MAX_FILE_SIZE=10485760
+
+# 后端API配置
+API_BASE_URL=https://api.your-domain.com/api/v1
+
+# 邮件配置（生产环境必需）
+# 参考 EMAIL_SETUP.md 配置邮件服务
+SMTP_HOST="smtp.qq.com"
+SMTP_PORT=587
+SMTP_USER="your-email@qq.com"
+SMTP_PASS="your-authorization-code"
+SMTP_FROM="your-email@qq.com"
+```
+
+#### 启动后端服务
+
+```bash
+# 进入服务器目录
+cd server
+
+# 安装Go依赖
+go mod tidy
+
+# 构建应用
+go build -o ctf-platform main.go
+
+# 运行服务
+./ctf-platform
+
+# 或直接运行
+go run main.go
+```
+
+#### 数据库配置
+
+```bash
+# 启动MySQL服务
+mysqld --datadir="/path/to/mysql-data" --port=3306 --console
+
+# 创建数据库
+mysql -u root -p
+CREATE DATABASE ctf_platform;
+```
+
+#### 邮件测试分支
+
+邮件功能测试代码位于 `email_test` 分支：
+
+```bash
+# 切换到邮件测试分支
+git checkout email_test
+
+# 运行邮件测试
+cd server
+go run test_qq_email.go
+go run test_qq_verification.go
 ```
 
 ## 生产环境部署

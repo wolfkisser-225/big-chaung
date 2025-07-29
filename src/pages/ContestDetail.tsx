@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Button, Tag, Tabs, Table, Progress, Statistic, Avatar, Timeline, Alert, Space, Divider, Typography, Badge } from 'antd';
-import { TrophyOutlined, UserOutlined, ClockCircleOutlined, FlagOutlined, TeamOutlined, StarOutlined, WarningOutlined, CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { TrophyOutlined, UserOutlined, ClockCircleOutlined, FlagOutlined, TeamOutlined, StarOutlined, WarningOutlined, CheckCircleOutlined, PlayCircleOutlined, SafetyOutlined } from '@ant-design/icons';
 import type { Contest, Challenge, LeaderboardEntry } from '../types';
 import { ChallengeType } from '../types';
 import dayjs from 'dayjs';
@@ -435,10 +435,11 @@ const ContestDetail: React.FC = () => {
                 <Button 
                   type="primary" 
                   size="large"
-                  icon={<FlagOutlined />}
+                  icon={<SafetyOutlined />}
                   disabled={contest.status === 'ended'}
+                  onClick={() => navigate(`/contests/${contest.id}/preparation`)}
                 >
-                  进入比赛
+                  比赛准备
                 </Button>
               )}
             </div>

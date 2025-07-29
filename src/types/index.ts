@@ -1,18 +1,37 @@
-// 用户角色类型
+// 用户角色类型（与Prisma模型一致）
 export enum UserRole {
-  ADMIN = 'admin',
-  ORGANIZER = 'organizer',
-  PARTICIPANT = 'participant'
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+  MODERATOR = 'MODERATOR'
 }
 
-// 用户信息接口
+// 难度枚举（与Prisma模型一致）
+export enum Difficulty {
+  EASY = 'EASY',
+  MEDIUM = 'MEDIUM',
+  HARD = 'HARD',
+  EXPERT = 'EXPERT'
+}
+
+// 提交状态枚举（与Prisma模型一致）
+export enum SubmissionStatus {
+  CORRECT = 'CORRECT',
+  INCORRECT = 'INCORRECT',
+  PENDING = 'PENDING'
+}
+
+// 用户信息接口（与Prisma模型一致）
 export interface User {
-  id: string;
+  id: number;
   username: string;
   email: string;
   role: UserRole;
   avatar?: string;
+  bio?: string;
+  score: number;
   createdAt: string;
+  updatedAt: string;
+  // 扩展字段
   behaviorTemplate?: BehaviorTemplate;
   preferences?: {
     theme: 'light' | 'dark';
@@ -22,13 +41,39 @@ export interface User {
   school?: string;
   major?: string;
   grade?: string;
-  bio?: string;
-  totalScore: number;
-  solvedChallenges: number;
-  participatedContests: number;
-  ranking: number;
-  registrationTime: string;
-  lastLoginTime: string;
+  solvedChallenges?: number;
+  participatedContests?: number;
+  ranking?: number;
+  lastLoginTime?: string;
+}
+
+// 登录请求接口
+export interface LoginRequest {
+  username: string;
+  password: string;
+  captchaId: string;
+  captchaCode: string;
+  emailVerifyId: string;
+  emailCode: string;
+}
+
+// 注册请求接口
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  role?: UserRole;
+  inviteCode?: string;
+  emailVerifyId: string;
+  emailCode: string;
+}
+
+// 认证响应接口
+export interface AuthResponse {
+  message: string;
+  user: User;
+  token: string;
 }
 
 // 行为特征模板
@@ -96,39 +141,45 @@ export enum ChallengeType {
   FORENSICS = 'forensics'
 }
 
-// 题目信息
+// 题目信息（与Prisma模型一致）
 export interface Challenge {
-  id: string;
+  id: number;
   title: string;
   description: string;
-  content?: string;
-  type: ChallengeType;
   category: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: Difficulty;
   points: number;
-  solvedCount: number;
-  totalAttempts: number;
-  attachments: string[];
-  hints: string[];
-  contestId: string;
+  flag: string;
+  hints?: any;
+  files?: any;
   isActive: boolean;
   createdAt: string;
-  tags: string[];
+  updatedAt: string;
+  // 扩展字段
+  content?: string;
+  type?: ChallengeType;
+  solvedCount?: number;
+  totalAttempts?: number;
+  attachments?: string[];
+  contestId?: string;
+  tags?: string[];
 }
 
-// Flag提交记录
+// Flag提交记录（与Prisma模型一致）
 export interface Submission {
-  id: string;
-  userId: string;
-  challengeId: string;
+  id: number;
+  userId: number;
+  challengeId: number;
   flag: string;
-  isCorrect: boolean;
+  status: SubmissionStatus;
   submittedAt: string;
-  behaviorData: BehaviorData;
+  // 扩展字段
+  isCorrect?: boolean;
+  behaviorData?: BehaviorData;
   blockchainHash?: string;
-  behaviorScore: number;
-  submissionTime: string;
-  verificationStatus: 'verified' | 'failed' | 'pending';
+  behaviorScore?: number;
+  submissionTime?: string;
+  verificationStatus?: 'verified' | 'failed' | 'pending';
 }
 
 // Flag提交记录别名

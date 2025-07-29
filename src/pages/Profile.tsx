@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Avatar, Statistic, Progress, Table, Tag, Timeline, Tabs, Form, Input, Button, Upload, message, Alert, Badge, Space } from 'antd';
-import { UserOutlined, TrophyOutlined, FlagOutlined, ClockCircleOutlined, EditOutlined, UploadOutlined, SafetyOutlined, LineChartOutlined, HistoryOutlined, SettingOutlined } from '@ant-design/icons';
+import { UserOutlined, TrophyOutlined, FlagOutlined, ClockCircleOutlined, EditOutlined, UploadOutlined, SafetyOutlined, LineChartOutlined, HistoryOutlined, SettingOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import type { User, FlagSubmission, BehaviorTemplate, Contest } from '../types';
 import { UserRole } from '../types';
 import dayjs from 'dayjs';
@@ -16,6 +17,10 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [behaviorCollecting, setBehaviorCollecting] = useState(false);
+  const [behaviorProgress, setBehaviorProgress] = useState(0);
+  const [canAccessTraining, setCanAccessTraining] = useState(false);
+  const navigate = useNavigate();
 
   // 初始化用户数据 - 管理员账户
   const mockUser: User = {
@@ -70,9 +75,73 @@ const Profile: React.FC = () => {
       setSubmissions(mockSubmissions);
       setBehaviorTemplate(mockBehaviorTemplate);
       setContests(mockContests);
+      
+      // 检查是否已完成行为特征采集
+      const behaviorCompleted = localStorage.getItem('behaviorTemplateCompleted');
+      setCanAccessTraining(behaviorCompleted === 'true');
+      
       setLoading(false);
     }, 1000);
   }, []);
+
+  // 开始行为特征采集
+  const startBehaviorCollection = () => {
+    setBehaviorCollecting(true);
+    setBehaviorProgress(0);
+    
+    const interval = setInterval(() => {
+      setBehaviorProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setBehaviorCollecting(false);
+          message.success('行为特征采集完成！现在可以进入训练场了。');
+          
+          // 保存完成状态
+          localStorage.setItem('behaviorTemplateCompleted', 'true');
+          setCanAccessTraining(true);
+          
+          // 创建模拟的行为模板
+          const newTemplate: BehaviorTemplate = {
+            id: 'template_' + Date.now(),
+            userId: user?.id || 'admin',
+            keystrokeDynamics: {
+              avgDwellTime: Math.floor(Math.random() * 50) + 80,
+              avgFlightTime: Math.floor(Math.random() * 30) + 50,
+              typingRhythm: Math.random() * 0.3 + 0.7,
+              pressureVariation: Math.random() * 0.2 + 0.1
+            },
+            mouseTrajectory: {
+              avgSpeed: Math.floor(Math.random() * 200) + 300,
+              acceleration: Math.random() * 0.4 + 0.3,
+              clickPattern: Math.random() * 0.3 + 0.6,
+              movementSmoothing: Math.random() * 0.2 + 0.8
+            },
+            sampleCount: Math.floor(Math.random() * 50) + 100,
+            accuracy: Math.random() * 0.1 + 0.9,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          setBehaviorTemplate(newTemplate);
+          localStorage.setItem('behaviorTemplate', JSON.stringify(newTemplate));
+          
+          return 100;
+        }
+        return prev + 5;
+      });
+    }, 200);
+  };
+
+  // 重新采集行为特征
+  const recollectBehavior = () => {
+    localStorage.removeItem('behaviorTemplateCompleted');
+    localStorage.removeItem('behaviorTemplate');
+    setBehaviorTemplate(null);
+    setCanAccessTraining(false);
+    setBehaviorProgress(0);
+    message.info('已重置行为特征，请重新采集。');
+  };
 
   if (loading || !user) {
     return <div className="flex justify-center items-center min-h-screen">加载中...</div>;
@@ -455,102 +524,175 @@ const Profile: React.FC = () => {
             </TabPane>
 
             <TabPane tab="行为模板" key="behavior">
-              {behaviorTemplate ? (
-                <Row gutter={[24, 24]}>
-                  <Col xs={24} lg={12}>
-                    <Card title="键击动态特征" size="small">
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span>平均按键时长:</span>
-                          <span className="font-medium">{behaviorTemplate.keystrokeDynamics.avgDwellTime}ms</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>平均飞行时间:</span>
-                          <span className="font-medium">{behaviorTemplate.keystrokeDynamics.avgFlightTime}ms</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>打字节奏:</span>
-                          <span className="font-medium">{(behaviorTemplate.keystrokeDynamics.typingRhythm * 100).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>压力变化:</span>
-                          <span className="font-medium">{(behaviorTemplate.keystrokeDynamics.pressureVariation * 100).toFixed(1)}%</span>
-                        </div>
+              {/* 训练场准入提示 */}
+              <Alert
+                className="mb-6"
+                message="训练场准入要求"
+                description={canAccessTraining ? 
+                  "✅ 您已完成行为特征采集，可以进入训练场进行练习。" : 
+                  "⚠️ 请先完成行为特征采集，这是进入训练场的必要条件。"
+                }
+                type={canAccessTraining ? 'success' : 'warning'}
+                showIcon
+                action={
+                   <Button 
+                     type={canAccessTraining ? 'default' : 'primary'} 
+                     icon={<PlayCircleOutlined />}
+                     disabled={!canAccessTraining}
+                     onClick={() => canAccessTraining && navigate('/training')}
+                   >
+                     进入训练场
+                   </Button>
+                 }
+              />
+
+              {/* 行为特征采集区域 */}
+              {!behaviorTemplate && (
+                <Card className="mb-6" title="行为特征采集">
+                  <Alert
+                    className="mb-4"
+                    message="为什么需要采集行为特征？"
+                    description="行为特征采集用于建立您独特的键击和鼠标使用模式，这将作为比赛中身份验证和防作弊的重要依据。"
+                    type="info"
+                    showIcon
+                  />
+                  
+                  {!behaviorCollecting && behaviorProgress === 0 && (
+                    <div className="text-center">
+                      <Button 
+                        type="primary" 
+                        size="large"
+                        icon={<SafetyOutlined />}
+                        onClick={startBehaviorCollection}
+                      >
+                        开始采集行为特征
+                      </Button>
+                      <p className="text-gray-500 mt-2">采集过程大约需要20秒</p>
+                    </div>
+                  )}
+                  
+                  {(behaviorCollecting || behaviorProgress > 0) && (
+                    <div>
+                      <div className="text-center mb-4">
+                        <h4 className="text-lg font-medium mb-2">
+                          {behaviorCollecting ? '正在采集行为特征...' : '行为特征采集完成'}
+                        </h4>
+                        <p className="text-gray-500">
+                          {behaviorCollecting ? '请正常使用键盘和鼠标，系统正在学习您的操作习惯' : '采集完成，已生成您的行为模板'}
+                        </p>
                       </div>
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={12}>
-                    <Card title="鼠标轨迹特征" size="small">
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span>平均移动速度:</span>
-                          <span className="font-medium">{behaviorTemplate.mouseTrajectory.avgSpeed}px/s</span>
+                      <Progress 
+                        percent={behaviorProgress} 
+                        status={behaviorCollecting ? 'active' : 'success'}
+                        strokeColor={behaviorProgress === 100 ? '#52c41a' : '#1890ff'}
+                        size="large"
+                      />
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {/* 已有行为模板的显示 */}
+              {behaviorTemplate && (
+                <div>
+                  <Row gutter={[24, 24]} className="mb-6">
+                    <Col xs={24} lg={12}>
+                      <Card title="键击动态特征" size="small">
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span>平均按键时长:</span>
+                            <span className="font-medium">{behaviorTemplate.keystrokeDynamics.avgDwellTime}ms</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>平均飞行时间:</span>
+                            <span className="font-medium">{behaviorTemplate.keystrokeDynamics.avgFlightTime}ms</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>打字节奏:</span>
+                            <span className="font-medium">{(behaviorTemplate.keystrokeDynamics.typingRhythm * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>压力变化:</span>
+                            <span className="font-medium">{(behaviorTemplate.keystrokeDynamics.pressureVariation * 100).toFixed(1)}%</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span>加速度变化:</span>
-                          <span className="font-medium">{(behaviorTemplate.mouseTrajectory.acceleration * 100).toFixed(1)}%</span>
+                      </Card>
+                    </Col>
+                    <Col xs={24} lg={12}>
+                      <Card title="鼠标轨迹特征" size="small">
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span>平均移动速度:</span>
+                            <span className="font-medium">{behaviorTemplate.mouseTrajectory.avgSpeed}px/s</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>加速度变化:</span>
+                            <span className="font-medium">{(behaviorTemplate.mouseTrajectory.acceleration * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>点击模式:</span>
+                            <span className="font-medium">{(behaviorTemplate.mouseTrajectory.clickPattern * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>移动平滑度:</span>
+                            <span className="font-medium">{(behaviorTemplate.mouseTrajectory.movementSmoothing * 100).toFixed(1)}%</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span>点击模式:</span>
-                          <span className="font-medium">{(behaviorTemplate.mouseTrajectory.clickPattern * 100).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>移动平滑度:</span>
-                          <span className="font-medium">{(behaviorTemplate.mouseTrajectory.movementSmoothing * 100).toFixed(1)}%</span>
-                        </div>
-                      </div>
-                    </Card>
-                  </Col>
-                  <Col xs={24}>
-                    <Card title="模板信息" size="small">
-                      <Row gutter={[16, 16]}>
-                        <Col span={6}>
-                          <Statistic
-                            title="样本数量"
-                            value={behaviorTemplate.sampleCount}
-                            prefix={<HistoryOutlined />}
-                          />
-                        </Col>
-                        <Col span={6}>
-                          <Statistic
-                            title="准确率"
-                            value={(behaviorTemplate.accuracy * 100).toFixed(1)}
-                            suffix="%"
-                            prefix={<SafetyOutlined />}
-                            valueStyle={{ color: '#52c41a' }}
-                          />
-                        </Col>
-                        <Col span={6}>
-                          <Statistic
-                            title="创建时间"
-                            value={dayjs(behaviorTemplate.createdAt).format('YYYY-MM-DD')}
-                            prefix={<ClockCircleOutlined />}
-                          />
-                        </Col>
-                        <Col span={6}>
-                          <Statistic
-                            title="更新时间"
-                            value={dayjs(behaviorTemplate.updatedAt).format('YYYY-MM-DD')}
-                            prefix={<ClockCircleOutlined />}
-                          />
-                        </Col>
-                      </Row>
+                      </Card>
+                    </Col>
+                  </Row>
+                  
+                  <Card title="模板信息" size="small">
+                    <Row gutter={[16, 16]}>
+                      <Col span={6}>
+                        <Statistic
+                          title="样本数量"
+                          value={behaviorTemplate.sampleCount}
+                          prefix={<HistoryOutlined />}
+                        />
+                      </Col>
+                      <Col span={6}>
+                        <Statistic
+                          title="准确率"
+                          value={(behaviorTemplate.accuracy * 100).toFixed(1)}
+                          suffix="%"
+                          prefix={<SafetyOutlined />}
+                          valueStyle={{ color: '#52c41a' }}
+                        />
+                      </Col>
+                      <Col span={6}>
+                        <Statistic
+                          title="创建时间"
+                          value={dayjs(behaviorTemplate.createdAt).format('YYYY-MM-DD')}
+                          prefix={<ClockCircleOutlined />}
+                        />
+                      </Col>
+                      <Col span={6}>
+                        <Statistic
+                          title="更新时间"
+                          value={dayjs(behaviorTemplate.updatedAt).format('YYYY-MM-DD')}
+                          prefix={<ClockCircleOutlined />}
+                        />
+                      </Col>
+                    </Row>
+                    
+                    <div className="mt-4 flex justify-between items-center">
                       <Alert
-                        className="mt-4"
                         message="行为模板状态"
                         description={`当前模板${behaviorTemplate.isActive ? '已激活' : '未激活'}，基于${behaviorTemplate.sampleCount}个样本训练，准确率达到${(behaviorTemplate.accuracy * 100).toFixed(1)}%。`}
                         type={behaviorTemplate.isActive ? 'success' : 'warning'}
                         showIcon
+                        className="flex-1 mr-4"
                       />
-                    </Card>
-                  </Col>
-                </Row>
-              ) : (
-                <div className="text-center py-8">
-                  <SafetyOutlined className="text-6xl text-gray-300 mb-4" />
-                  <h3 className="text-xl text-gray-500 mb-2">暂无行为模板</h3>
-                  <p className="text-gray-400 mb-4">参与更多比赛来建立你的行为特征模板</p>
-                  <Button type="primary">开始建立模板</Button>
+                      <Button 
+                        type="default" 
+                        onClick={recollectBehavior}
+                        className="flex-shrink-0"
+                      >
+                        重新采集
+                      </Button>
+                    </div>
+                  </Card>
                 </div>
               )}
             </TabPane>

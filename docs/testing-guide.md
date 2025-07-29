@@ -198,6 +198,774 @@ vi.mock('@/hooks/useAuth')
 
 const mockChallenge = {
   id: '1',
+  title: 'Web安全挑战',
+  description: '这是一个Web安全相关的挑战题目',
+  difficulty: 'medium',
+  points: 100,
+  category: 'web',
+  solved: false
+}
+
+const renderWithRouter = (component: React.ReactElement) => {
+  return render(
+    <BrowserRouter>
+      {component}
+    </BrowserRouter>
+  )
+}
+
+describe('ChallengeCard Component', () => {
+  beforeEach(() => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: '1', username: 'testuser' },
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn()
+    })
+  })
+
+  it('renders challenge information correctly', () => {
+    renderWithRouter(<ChallengeCard challenge={mockChallenge} />)
+    
+    expect(screen.getByText('Web安全挑战')).toBeInTheDocument()
+    expect(screen.getByText('100 分')).toBeInTheDocument()
+    expect(screen.getByText('medium')).toBeInTheDocument()
+  })
+
+  it('handles challenge click', async () => {
+    const mockNavigate = vi.fn()
+    vi.mock('react-router-dom', () => ({
+      ...vi.importActual('react-router-dom'),
+      useNavigate: () => mockNavigate
+    }))
+
+    renderWithRouter(<ChallengeCard challenge={mockChallenge} />)
+    
+    fireEvent.click(screen.getByRole('button', { name: /查看详情/ }))
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(`/challenge/${mockChallenge.id}`)
+    })
+  })
+})
+```
+
+### Hook 测试
+
+```typescript
+// src/hooks/useAuth.test.ts
+import { renderHook, act } from '@testing-library/react'
+import { vi } from 'vitest'
+import { useAuth } from './useAuth'
+import * as api from '@/utils/api'
+
+// Mock API
+vi.mock('@/utils/api')
+
+describe('useAuth Hook', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+  })
+
+  it('initializes with no user', () => {
+    const { result } = renderHook(() => useAuth())
+    
+    expect(result.current.user).toBeNull()
+    expect(result.current.isAuthenticated).toBe(false)
+  })
+
+  it('logs in user successfully', async () => {
+    const mockUser = { id: '1', username: 'testuser', email: 'test@example.com' }
+    vi.mocked(api.login).mockResolvedValue({ user: mockUser, token: 'mock-token' })
+
+    const { result } = renderHook(() => useAuth())
+
+    await act(async () => {
+      await result.current.login('testuser', 'password')
+    })
+
+    expect(result.current.user).toEqual(mockUser)
+    expect(result.current.isAuthenticated).toBe(true)
+    expect(localStorage.getItem('token')).toBe('mock-token')
+  })
+
+  it('handles login error', async () => {
+    vi.mocked(api.login).mockRejectedValue(new Error('Invalid credentials'))
+
+    const { result } = renderHook(() => useAuth())
+
+    await act(async () => {
+      try {
+        await result.current.login('testuser', 'wrongpassword')
+      } catch (error) {
+        expect(error.message).toBe('Invalid credentials')
+      }
+    })
+
+    expect(result.current.user).toBeNull()
+    expect(result.current.isAuthenticated).toBe(false)
+  })
+})
+```
+
+## 邮件功能测试
+
+### 邮件服务测试
+
+邮件功能测试代码位于 `email_test` 分支，包含以下测试文件：
+
+#### QQ邮箱SMTP测试
+
+```go
+// server/test_qq_email.go
+package main
+
+import (
+	"fmt"
+	"net/smtp"
+	"crypto/tls"
+)
+
+func TestQQEmailConnection() {
+	// SMTP配置
+	host := "smtp.qq.com"
+	port := "587"
+	username := "your-email@qq.com"
+	password := "your-authorization-code"
+
+	// 测试SMTP连接
+	auth := smtp.PlainAuth("", username, password, host)
+	
+	// 连接到SMTP服务器
+	c, err := smtp.Dial(host + ":" + port)
+	if err != nil {
+		fmt.Printf("连接失败: %v\n", err)
+		return
+	}
+	defer c.Close()
+
+	// 启用TLS
+	tlsConfig := &tls.Config{
+		ServerName: host,
+	}
+	if err = c.StartTLS(tlsConfig); err != nil {
+		fmt.Printf("TLS启动失败: %v\n", err)
+		return
+	}
+
+	// 认证
+	if err = c.Auth(auth); err != nil {
+		fmt.Printf("认证失败: %v\n", err)
+		return
+	}
+
+	fmt.Println("QQ邮箱SMTP连接测试成功！")
+}
+```
+
+#### 验证码发送测试
+
+```go
+// server/test_qq_verification.go
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"time"
+	"net/smtp"
+	"crypto/tls"
+	"strings"
+)
+
+func SendVerificationCode(to string) (string, error) {
+	// 生成6位验证码
+	rand.Seed(time.Now().UnixNano())
+	code := fmt.Sprintf("%06d", rand.Intn(1000000))
+
+	// SMTP配置
+	host := "smtp.qq.com"
+	port := "587"
+	from := "your-email@qq.com"
+	password := "your-authorization-code"
+
+	// 邮件内容
+	subject := "CTF平台验证码"
+	body := fmt.Sprintf(`
+		<h2>CTF平台验证码</h2>
+		<p>您的验证码是：<strong>%s</strong></p>
+		<p>验证码有效期为5分钟，请及时使用。</p>
+		<p>如果这不是您的操作，请忽略此邮件。</p>
+	`, code)
+
+	msg := []byte(fmt.Sprintf(
+		"From: %s\r\n"+
+			"To: %s\r\n"+
+			"Subject: %s\r\n"+
+			"Content-Type: text/html; charset=UTF-8\r\n"+
+			"\r\n"+
+			"%s\r\n",
+		from, to, subject, body))
+
+	// 发送邮件
+	auth := smtp.PlainAuth("", from, password, host)
+	err := SendMailWithTLS(host+":"+port, auth, from, []string{to}, msg)
+	if err != nil {
+		return "", fmt.Errorf("邮件发送失败: %v", err)
+	}
+
+	return code, nil
+}
+
+func SendMailWithTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte) error {
+	// 连接到SMTP服务器
+	c, err := smtp.Dial(addr)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
+	// 启用TLS
+	host := strings.Split(addr, ":")[0]
+	tlsConfig := &tls.Config{ServerName: host}
+	if err = c.StartTLS(tlsConfig); err != nil {
+		return err
+	}
+
+	// 认证
+	if err = c.Auth(auth); err != nil {
+		return err
+	}
+
+	// 设置发件人
+	if err = c.Mail(from); err != nil {
+		return err
+	}
+
+	// 设置收件人
+	for _, addr := range to {
+		if err = c.Rcpt(addr); err != nil {
+			return err
+		}
+	}
+
+	// 发送邮件内容
+	w, err := c.Data()
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(msg)
+	if err != nil {
+		return err
+	}
+	err = w.Close()
+	if err != nil {
+		return err
+	}
+
+	return c.Quit()
+}
+```
+
+### 邮件测试运行
+
+```bash
+# 切换到邮件测试分支
+git checkout email_test
+
+# 运行基础连接测试
+cd server
+go run test_qq_email.go
+
+# 运行验证码发送测试
+go run test_qq_verification.go
+
+# 运行完整邮件诊断
+go run email_diagnosis.go
+```
+
+### 前端邮件功能测试
+
+```typescript
+// src/components/Register/Register.test.tsx
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { vi } from 'vitest'
+import Register from './Register'
+import * as api from '@/utils/api'
+
+vi.mock('@/utils/api')
+
+describe('Register Component - Email Verification', () => {
+  it('sends verification code successfully', async () => {
+    vi.mocked(api.sendVerificationCode).mockResolvedValue({ success: true })
+
+    render(<Register />)
+    
+    const emailInput = screen.getByLabelText(/邮箱/)
+    const sendCodeButton = screen.getByText(/发送验证码/)
+
+    fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
+    fireEvent.click(sendCodeButton)
+
+    await waitFor(() => {
+      expect(api.sendVerificationCode).toHaveBeenCalledWith('test@example.com')
+      expect(screen.getByText(/验证码已发送/)).toBeInTheDocument()
+    })
+  })
+
+  it('handles verification code send error', async () => {
+    vi.mocked(api.sendVerificationCode).mockRejectedValue(new Error('发送失败'))
+
+    render(<Register />)
+    
+    const emailInput = screen.getByLabelText(/邮箱/)
+    const sendCodeButton = screen.getByText(/发送验证码/)
+
+    fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
+    fireEvent.click(sendCodeButton)
+
+    await waitFor(() => {
+      expect(screen.getByText(/发送失败/)).toBeInTheDocument()
+    })
+  })
+
+  it('validates email format before sending code', () => {
+    render(<Register />)
+    
+    const emailInput = screen.getByLabelText(/邮箱/)
+    const sendCodeButton = screen.getByText(/发送验证码/)
+
+    fireEvent.change(emailInput, { target: { value: 'invalid-email' } })
+    fireEvent.click(sendCodeButton)
+
+    expect(screen.getByText(/请输入有效的邮箱地址/)).toBeInTheDocument()
+    expect(api.sendVerificationCode).not.toHaveBeenCalled()
+  })
+})
+```
+
+## 集成测试
+
+### API 集成测试
+
+```typescript
+// src/test/integration/auth.test.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { setupServer } from 'msw/node'
+import { rest } from 'msw'
+import { login, register, sendVerificationCode } from '@/utils/api'
+
+const server = setupServer(
+  rest.post('/api/v1/auth/login', (req, res, ctx) => {
+    return res(
+      ctx.json({
+        user: { id: '1', username: 'testuser', email: 'test@example.com' },
+        token: 'mock-token'
+      })
+    )
+  }),
+  
+  rest.post('/api/v1/auth/register', (req, res, ctx) => {
+    return res(
+      ctx.json({
+        user: { id: '2', username: 'newuser', email: 'new@example.com' },
+        token: 'new-token'
+      })
+    )
+  }),
+  
+  rest.post('/api/v1/auth/send-verification-code', (req, res, ctx) => {
+    return res(
+      ctx.json({
+        success: true,
+        message: '验证码已发送'
+      })
+    )
+  })
+)
+
+beforeAll(() => server.listen())
+afterAll(() => server.close())
+
+describe('Auth API Integration', () => {
+  it('login flow works correctly', async () => {
+    const result = await login('testuser', 'password')
+    
+    expect(result.user.username).toBe('testuser')
+    expect(result.token).toBe('mock-token')
+  })
+
+  it('registration flow works correctly', async () => {
+    const result = await register({
+      username: 'newuser',
+      email: 'new@example.com',
+      password: 'password123',
+      verificationCode: '123456'
+    })
+    
+    expect(result.user.username).toBe('newuser')
+    expect(result.token).toBe('new-token')
+  })
+
+  it('verification code sending works correctly', async () => {
+    const result = await sendVerificationCode('test@example.com')
+    
+    expect(result.success).toBe(true)
+    expect(result.message).toBe('验证码已发送')
+  })
+})
+```
+
+## 端到端测试
+
+### Playwright 配置
+
+```typescript
+// playwright.config.ts
+import { defineConfig, devices } from '@playwright/test'
+
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'html',
+  use: {
+    baseURL: 'http://localhost:5173',
+    trace: 'on-first-retry',
+  },
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+  ],
+  webServer: {
+    command: 'pnpm dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: !process.env.CI,
+  },
+})
+```
+
+### 用户注册流程测试
+
+```typescript
+// e2e/auth.spec.ts
+import { test, expect } from '@playwright/test'
+
+test.describe('User Authentication', () => {
+  test('user can register with email verification', async ({ page }) => {
+    await page.goto('/register')
+
+    // 填写注册表单
+    await page.fill('[data-testid="username-input"]', 'testuser')
+    await page.fill('[data-testid="email-input"]', 'test@example.com')
+    await page.fill('[data-testid="password-input"]', 'Password123!')
+    await page.fill('[data-testid="confirm-password-input"]', 'Password123!')
+
+    // 发送验证码
+    await page.click('[data-testid="send-code-button"]')
+    await expect(page.locator('[data-testid="success-message"]')).toContainText('验证码已发送')
+
+    // 输入验证码（在测试环境中使用固定验证码）
+    await page.fill('[data-testid="verification-code-input"]', '123456')
+
+    // 提交注册
+    await page.click('[data-testid="register-button"]')
+
+    // 验证注册成功
+    await expect(page).toHaveURL('/dashboard')
+    await expect(page.locator('[data-testid="user-menu"]')).toContainText('testuser')
+  })
+
+  test('user can login', async ({ page }) => {
+    await page.goto('/login')
+
+    await page.fill('[data-testid="username-input"]', 'testuser')
+    await page.fill('[data-testid="password-input"]', 'password')
+    await page.click('[data-testid="login-button"]')
+
+    await expect(page).toHaveURL('/dashboard')
+  })
+
+  test('user can logout', async ({ page }) => {
+    // 先登录
+    await page.goto('/login')
+    await page.fill('[data-testid="username-input"]', 'testuser')
+    await page.fill('[data-testid="password-input"]', 'password')
+    await page.click('[data-testid="login-button"]')
+
+    // 登出
+    await page.click('[data-testid="user-menu"]')
+    await page.click('[data-testid="logout-button"]')
+
+    await expect(page).toHaveURL('/login')
+  })
+})
+```
+
+### 挑战功能测试
+
+```typescript
+// e2e/challenges.spec.ts
+import { test, expect } from '@playwright/test'
+
+test.describe('Challenge Features', () => {
+  test.beforeEach(async ({ page }) => {
+    // 登录
+    await page.goto('/login')
+    await page.fill('[data-testid="username-input"]', 'testuser')
+    await page.fill('[data-testid="password-input"]', 'password')
+    await page.click('[data-testid="login-button"]')
+  })
+
+  test('user can view challenge list', async ({ page }) => {
+    await page.goto('/challenges')
+    
+    await expect(page.locator('[data-testid="challenge-card"]')).toHaveCount(3)
+    await expect(page.locator('[data-testid="challenge-title"]').first()).toBeVisible()
+  })
+
+  test('user can view challenge details', async ({ page }) => {
+    await page.goto('/challenges')
+    
+    await page.click('[data-testid="challenge-card"]')
+    
+    await expect(page.locator('[data-testid="challenge-description"]')).toBeVisible()
+    await expect(page.locator('[data-testid="flag-input"]')).toBeVisible()
+    await expect(page.locator('[data-testid="submit-flag-button"]')).toBeVisible()
+  })
+
+  test('user can submit flag', async ({ page }) => {
+    await page.goto('/challenge/1')
+    
+    await page.fill('[data-testid="flag-input"]', 'flag{test_flag}')
+    await page.click('[data-testid="submit-flag-button"]')
+    
+    await expect(page.locator('[data-testid="success-message"]')).toContainText('恭喜！')
+  })
+})
+```
+
+## 性能测试
+
+### Lighthouse CI
+
+```yaml
+# .github/workflows/lighthouse.yml
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'pnpm'
+    
+    - name: Install dependencies
+      run: |
+        npm install -g pnpm
+        pnpm install
+    
+    - name: Build app
+      run: pnpm build
+    
+    - name: Run Lighthouse CI
+      uses: treosh/lighthouse-ci-action@v9
+      with:
+        configPath: './lighthouserc.json'
+        uploadArtifacts: true
+        temporaryPublicStorage: true
+```
+
+```json
+// lighthouserc.json
+{
+  "ci": {
+    "collect": {
+      "staticDistDir": "./dist",
+      "numberOfRuns": 3
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", {"minScore": 0.9}],
+        "categories:accessibility": ["error", {"minScore": 0.9}],
+        "categories:best-practices": ["error", {"minScore": 0.9}],
+        "categories:seo": ["error", {"minScore": 0.9}]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}
+```
+
+## 测试命令
+
+### Package.json 脚本
+
+```json
+{
+  "scripts": {
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:email": "cd server && go run test_qq_email.go",
+    "test:verification": "cd server && go run test_qq_verification.go"
+  }
+}
+```
+
+### 测试运行
+
+```bash
+# 运行所有单元测试
+pnpm test
+
+# 运行测试并生成覆盖率报告
+pnpm test:coverage
+
+# 运行 E2E 测试
+pnpm test:e2e
+
+# 运行邮件功能测试
+git checkout email_test
+pnpm test:email
+pnpm test:verification
+
+# 运行特定测试文件
+pnpm test src/components/Button/Button.test.tsx
+
+# 监听模式运行测试
+pnpm test --watch
+```
+
+## 测试最佳实践
+
+### 1. 测试命名
+
+- 使用描述性的测试名称
+- 遵循 "should do something when condition" 格式
+- 使用中文描述业务逻辑
+
+### 2. 测试结构
+
+- 遵循 AAA 模式（Arrange, Act, Assert）
+- 每个测试只验证一个行为
+- 使用 `describe` 和 `it` 组织测试
+
+### 3. Mock 策略
+
+- Mock 外部依赖（API、第三方库）
+- 不要 Mock 被测试的代码
+- 使用 MSW 进行 API Mock
+
+### 4. 测试数据
+
+- 使用工厂函数生成测试数据
+- 避免硬编码测试数据
+- 每个测试使用独立的数据
+
+### 5. 异步测试
+
+- 使用 `waitFor` 等待异步操作
+- 避免使用 `setTimeout`
+- 正确处理 Promise 和 async/await
+
+### 6. 邮件功能测试
+
+- 在 `email_test` 分支进行邮件功能测试
+- 使用真实的SMTP服务器进行集成测试
+- 测试不同邮件服务商的兼容性
+- 验证邮件内容和格式
+
+## 持续集成
+
+### GitHub Actions 工作流
+
+```yaml
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, email_test ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'pnpm'
+    
+    - name: Install dependencies
+      run: |
+        npm install -g pnpm
+        pnpm install
+    
+    - name: Run unit tests
+      run: pnpm test:run
+    
+    - name: Run E2E tests
+      run: pnpm test:e2e
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        
+  email-test:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/email_test'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: '1.19'
+    
+    - name: Run email tests
+      run: |
+        cd server
+        go mod tidy
+        go run test_qq_email.go
+```
+
+通过这个全面的测试指南，您可以确保 CTF 平台的质量和稳定性，包括核心功能和邮件服务的可靠性。
   title: 'Web Security Challenge',
   description: 'Find the hidden flag',
   difficulty: 'medium',

@@ -1,41 +1,127 @@
-import React, { useState } from 'react';
-import { Form, Input, Button, Card, Checkbox, message, Divider } from 'antd';
-import { UserOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, Card, Checkbox, message, Divider, Row, Col, Image } from 'antd';
+import { UserOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone, MailOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
+import { authAPI, handleApiError } from '../utils/api';
+import { LoginRequest } from '../types';
+import { useAuthStore } from '../stores/authStore';
 
-interface LoginForm {
-  username: string;
-  password: string;
+interface LoginForm extends LoginRequest {
   remember: boolean;
 }
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [captchaLoading, setCaptchaLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [captchaData, setCaptchaData] = useState<{ captchaId: string; captchaImage: string } | null>(null);
+  const [emailVerifyId, setEmailVerifyId] = useState<string>('');
+  const [countdown, setCountdown] = useState(0);
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { login } = useAuthStore();
+
+  // 获取图片验证码
+  const getCaptcha = async () => {
+    setCaptchaLoading(true);
+    try {
+      const response = await authAPI.getCaptcha();
+      setCaptchaData(response);
+    } catch (error) {
+      message.error('获取验证码失败');
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
+  // 发送邮箱验证码
+  const sendEmailCode = async () => {
+    const username = form.getFieldValue('username');
+    if (!username) {
+      message.error('请先输入用户名');
+      return;
+    }
+
+    if (!captchaData || !form.getFieldValue('captchaCode')) {
+      message.error('请先完成图片验证码');
+      return;
+    }
+
+    setEmailLoading(true);
+    try {
+      // 这里需要根据用户名获取邮箱，暂时使用用户名作为邮箱
+      const response = await authAPI.sendEmailCode({
+        email: username.includes('@') ? username : `${username}@example.com`,
+        purpose: 'login'
+      });
+      setEmailVerifyId(response.verifyId);
+      message.success('验证码已发送到您的邮箱');
+      
+      // 开始倒计时
+      setCountdown(60);
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (error) {
+      message.error('发送验证码失败');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  // 页面加载时获取验证码
+  useEffect(() => {
+    getCaptcha();
+  }, []);
 
   const onFinish = async (values: LoginForm) => {
+    if (!captchaData) {
+      message.error('请先获取图片验证码');
+      return;
+    }
+
+    if (!emailVerifyId) {
+      message.error('请先获取邮箱验证码');
+      return;
+    }
+
     setLoading(true);
     try {
-      // 模拟登录API调用
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const loginData: LoginRequest = {
+        username: values.username,
+        password: values.password,
+        captchaId: captchaData.captchaId,
+        captchaCode: values.captchaCode,
+        emailVerifyId: emailVerifyId,
+        emailCode: values.emailCode
+      };
       
-      // 模拟登录成功
-      if (values.username === 'admin' && values.password === 'admin123') {
-        message.success('登录成功！');
-        // 存储用户信息到localStorage
-        localStorage.setItem('user', JSON.stringify({
-          id: '1',
-          username: values.username,
-          role: 'admin',
-          token: 'mock-jwt-token'
-        }));
-        navigate('/');
+      const response = await authAPI.login(loginData);
+      
+      message.success(response.message || '登录成功！');
+      
+      // 使用store管理用户状态
+      login(response.user, response.token);
+      
+      // 如果选择了记住我，存储到localStorage
+      if (values.remember) {
+        localStorage.setItem('remember_user', values.username);
       } else {
-        message.error('用户名或密码错误！');
+        localStorage.removeItem('remember_user');
       }
+      
+      navigate('/');
     } catch (error) {
-      message.error('登录失败，请重试！');
+      const errorMessage = handleApiError(error);
+      message.error(errorMessage);
+      // 验证失败后重新获取验证码
+      getCaptcha();
     } finally {
       setLoading(false);
     }
@@ -99,6 +185,66 @@ const Login: React.FC = () => {
                 autoComplete="current-password"
                 iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
               />
+            </Form.Item>
+
+            {/* 图片验证码 */}
+            <Form.Item
+              name="captchaCode"
+              label="图片验证码"
+              rules={[{ required: true, message: '请输入图片验证码！' }]}
+            >
+              <Row gutter={8}>
+                <Col span={14}>
+                  <Input placeholder="请输入验证码" />
+                </Col>
+                <Col span={10}>
+                  <div className="flex items-center space-x-2">
+                    {captchaData && (
+                      <Image
+                        src={`data:image/png;base64,${captchaData.captchaImage}`}
+                        alt="验证码"
+                        width={100}
+                        height={40}
+                        preview={false}
+                        className="border rounded cursor-pointer"
+                        onClick={getCaptcha}
+                      />
+                    )}
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={getCaptcha}
+                      loading={captchaLoading}
+                      size="small"
+                    />
+                  </div>
+                </Col>
+              </Row>
+            </Form.Item>
+
+            {/* 邮箱验证码 */}
+            <Form.Item
+              name="emailCode"
+              label="邮箱验证码"
+              rules={[{ required: true, message: '请输入邮箱验证码！' }]}
+            >
+              <Row gutter={8}>
+                <Col span={14}>
+                  <Input
+                    prefix={<MailOutlined className="text-gray-400" />}
+                    placeholder="请输入邮箱验证码"
+                  />
+                </Col>
+                <Col span={10}>
+                  <Button
+                    onClick={sendEmailCode}
+                    loading={emailLoading}
+                    disabled={countdown > 0}
+                    className="w-full"
+                  >
+                    {countdown > 0 ? `${countdown}s` : '获取验证码'}
+                  </Button>
+                </Col>
+              </Row>
             </Form.Item>
 
             <Form.Item>
