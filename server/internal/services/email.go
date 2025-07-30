@@ -93,12 +93,16 @@ func (s *EmailService) VerifyCode(verifyID, code string) bool {
 		return false
 	}
 	
-	// 验证码验证后删除（一次性使用）
-	s.mutex.Lock()
-	delete(s.verifications, verifyID)
-	s.mutex.Unlock()
+	isValid := verificationData.Code == code
 	
-	return verificationData.Code == code
+	// 只有验证成功时才删除验证码（一次性使用）
+	if isValid {
+		s.mutex.Lock()
+		delete(s.verifications, verifyID)
+		s.mutex.Unlock()
+	}
+	
+	return isValid
 }
 
 // generateID 生成随机ID

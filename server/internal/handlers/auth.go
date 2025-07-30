@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,7 +29,7 @@ type RegisterRequest struct {
 
 // LoginRequest 登录请求结构
 type LoginRequest struct {
-	Username      string `json:"username" binding:"required"`
+	Username      string `json:"username" binding:"required,email"` // 现在要求必须是邮箱格式
 	Password      string `json:"password" binding:"required"`
 	CaptchaID     string `json:"captchaId" binding:"required"`
 	CaptchaCode   string `json:"captchaCode" binding:"required"`
@@ -116,11 +118,11 @@ func (h *Handlers) Register(c *gin.Context) {
 		return
 	}
 
-	// TODO: 验证邮箱验证码
-	// if !h.EmailService.VerifyCode(req.EmailVerifyID, req.EmailCode) {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "邮箱验证码错误或已过期"})
-	//	return
-	// }
+	// 验证邮箱验证码
+	if !h.EmailService.VerifyCode(req.EmailVerifyID, req.EmailCode) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "邮箱验证码错误或已过期"})
+		return
+	}
 
 	// 检查用户名是否已存在
 	var existingUser models.User
@@ -181,24 +183,24 @@ func (h *Handlers) Login(c *gin.Context) {
 		return
 	}
 
-	// TODO: 验证图片验证码
-	// if !h.CaptchaService.VerifyCaptcha(req.CaptchaID, req.CaptchaCode) {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "图片验证码错误或已过期"})
-	//	return
-	// }
-
-	// 查找用户（支持用户名或邮箱登录）
-	var user models.User
-	if err := h.DB.Where("username = ? OR email = ?", req.Username, req.Username).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
+	// 验证图片验证码
+	if !h.CaptchaService.VerifyCaptcha(req.CaptchaID, req.CaptchaCode) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "图片验证码错误或已过期"})
 		return
 	}
 
-	// TODO: 验证邮箱验证码
-	// if !h.EmailService.VerifyCode(req.EmailVerifyID, req.EmailCode) {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "邮箱验证码错误或已过期"})
-	//	return
-	// }
+	// 查找用户（只通过邮箱登录）
+	var user models.User
+	if err := h.DB.Where("email = ?", req.Username).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "邮箱或密码错误"})
+		return
+	}
+
+	// 验证邮箱验证码
+	if !h.EmailService.VerifyCode(req.EmailVerifyID, req.EmailCode) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "邮箱验证码错误或已过期"})
+		return
+	}
 
 	// 验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
@@ -307,7 +309,7 @@ func (h *Handlers) GenerateCaptcha(c *gin.Context) {
 	
 	c.JSON(http.StatusOK, CaptchaResponse{
 		CaptchaID:    captchaID,
-		CaptchaImage: fmt.Sprintf("data:image/png;base64,%s", imageBase64),
+		CaptchaImage: imageBase64,
 	})
 }
 
@@ -317,6 +319,30 @@ func (h *Handlers) SendEmailCode(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// 验证邮箱域名
+	if !isValidEmailDomain(req.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "邮箱域名不存在或无效"})
+		return
+	}
+
+	// 根据用途验证邮箱是否已注册
+	var user models.User
+	err := h.DB.Where("email = ?", req.Email).First(&user).Error
+	
+	if req.Purpose == "register" {
+		// 注册时，邮箱不应该已存在
+		if err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "该邮箱已被注册"})
+			return
+		}
+	} else if req.Purpose == "login" {
+		// 登录时，邮箱必须已注册
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "该邮箱尚未注册"})
+			return
+		}
 	}
 	
 	verifyID, err := h.EmailService.SendVerificationCode(req.Email, req.Purpose)
@@ -329,6 +355,50 @@ func (h *Handlers) SendEmailCode(c *gin.Context) {
 		"message":       "验证码已发送",
 		"emailVerifyId": verifyID,
 	})
+}
+
+// isValidEmailDomain 验证邮箱域名是否有效
+func isValidEmailDomain(email string) bool {
+	// 基本格式验证
+	if !strings.Contains(email, "@") {
+		return false
+	}
+
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return false
+	}
+
+	domain := strings.ToLower(parts[1])
+
+	// 检查无效域名列表
+	invalidDomains := []string{
+		"example.com",
+		"test.com",
+		"localhost",
+		"invalid.com",
+		"fake.com",
+		"dummy.com",
+		"sample.com",
+	}
+
+	for _, invalidDomain := range invalidDomains {
+		if domain == invalidDomain {
+			return false
+		}
+	}
+
+	// 检查域名是否有MX记录
+	_, err := net.LookupMX(domain)
+	if err != nil {
+		// 如果没有MX记录，检查A记录
+		_, err = net.LookupHost(domain)
+		if err != nil {
+			return false
+		}
+	}
+
+	return true
 }
 
 // generateJWT 生成JWT token

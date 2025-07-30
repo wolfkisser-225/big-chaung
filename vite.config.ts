@@ -24,4 +24,13 @@ export default defineConfig({
     }), 
     tsconfigPaths()
   ],
+  server: {
+    host: '127.0.0.1',
+    port: 5174,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      'b931ca1245a9.ngrok-free.app'
+    ]
+  }
 })

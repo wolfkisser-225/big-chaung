@@ -34,11 +34,36 @@ const Login: React.FC = () => {
     }
   };
 
+  // 验证邮箱域名是否存在
+  const validateEmailDomain = (email: string): boolean => {
+    // 基本邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return false;
+    }
+
+    // 检查常见的无效域名
+    const invalidDomains = ['example.com', 'test.com', 'localhost', 'invalid.com'];
+    const domain = email.split('@')[1].toLowerCase();
+    
+    if (invalidDomains.includes(domain)) {
+      return false;
+    }
+
+    return true;
+  };
+
   // 发送邮箱验证码
   const sendEmailCode = async () => {
-    const username = form.getFieldValue('username');
-    if (!username) {
-      message.error('请先输入用户名');
+    const email = form.getFieldValue('email');
+    if (!email) {
+      message.error('请先输入邮箱');
+      return;
+    }
+
+    // 验证邮箱域名
+    if (!validateEmailDomain(email)) {
+      message.error('邮箱域名不存在或无效，请输入有效的邮箱地址');
       return;
     }
 
@@ -49,12 +74,11 @@ const Login: React.FC = () => {
 
     setEmailLoading(true);
     try {
-      // 这里需要根据用户名获取邮箱，暂时使用用户名作为邮箱
       const response = await authAPI.sendEmailCode({
-        email: username.includes('@') ? username : `${username}@example.com`,
+        email: email,
         purpose: 'login'
       });
-      setEmailVerifyId(response.verifyId);
+      setEmailVerifyId(response.emailVerifyId);
       message.success('验证码已发送到您的邮箱');
       
       // 开始倒计时
@@ -94,13 +118,13 @@ const Login: React.FC = () => {
     setLoading(true);
     try {
       const loginData: LoginRequest = {
-        username: values.username,
-        password: values.password,
-        captchaId: captchaData.captchaId,
-        captchaCode: values.captchaCode,
-        emailVerifyId: emailVerifyId,
-        emailCode: values.emailCode
-      };
+      username: values.email, // 后端仍使用username字段，但传入邮箱值
+      password: values.password,
+      captchaId: captchaData.captchaId,
+      captchaCode: values.captchaCode,
+      emailVerifyId: emailVerifyId,
+      emailCode: values.emailCode
+    };
       
       const response = await authAPI.login(loginData);
       
@@ -111,7 +135,7 @@ const Login: React.FC = () => {
       
       // 如果选择了记住我，存储到localStorage
       if (values.remember) {
-        localStorage.setItem('remember_user', values.username);
+        localStorage.setItem('remember_user', values.email);
       } else {
         localStorage.removeItem('remember_user');
       }
@@ -145,7 +169,7 @@ const Login: React.FC = () => {
               用户登录
             </h2>
             <p className="text-gray-500 dark:text-gray-400 mt-2">
-              请输入您的账号和密码
+              请输入您的邮箱和密码
             </p>
           </div>
 
@@ -157,17 +181,26 @@ const Login: React.FC = () => {
             size="large"
           >
             <Form.Item
-              name="username"
-              label="用户名"
+              name="email"
+              label="邮箱"
               rules={[
-                { required: true, message: '请输入用户名！' },
-                { min: 3, message: '用户名至少3个字符！' }
+                { required: true, message: '请输入邮箱！' },
+                { type: 'email', message: '请输入有效的邮箱地址！' },
+                {
+                  validator: (_, value) => {
+                    if (!value) return Promise.resolve();
+                    if (!validateEmailDomain(value)) {
+                      return Promise.reject(new Error('邮箱域名不存在或无效'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
               ]}
             >
               <Input
-                prefix={<UserOutlined className="text-gray-400" />}
-                placeholder="请输入用户名"
-                autoComplete="username"
+                prefix={<MailOutlined className="text-gray-400" />}
+                placeholder="请输入邮箱"
+                autoComplete="email"
               />
             </Form.Item>
 
@@ -287,16 +320,7 @@ const Login: React.FC = () => {
             </Link>
           </div>
 
-          {/* 测试账号提示 */}
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-              测试账号
-            </h4>
-            <div className="text-sm text-blue-600 dark:text-blue-300">
-              <div>用户名: admin</div>
-              <div>密码: admin123</div>
-            </div>
-          </div>
+
         </Card>
 
         <div className="text-center mt-6 text-sm text-gray-500 dark:text-gray-400">

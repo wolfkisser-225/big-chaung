@@ -49,7 +49,7 @@ export interface User {
 
 // 登录请求接口
 export interface LoginRequest {
-  username: string;
+  username: string; // 现在传入邮箱值，但字段名保持username以兼容后端
   password: string;
   captchaId: string;
   captchaCode: string;

@@ -31,11 +31,20 @@ const Register: React.FC = () => {
 
     setEmailLoading(true);
     try {
+      console.log('=== 发送邮箱验证码 ===');
+      console.log('邮箱地址:', email);
+      
       const response = await authAPI.sendEmailCode({
         email: email,
         purpose: 'register'
       });
-      setEmailVerifyId(response.verifyId);
+      
+      console.log('API响应:', response);
+      console.log('response.emailVerifyId:', response.emailVerifyId);
+      
+      setEmailVerifyId(response.emailVerifyId);
+      
+      console.log('设置的 emailVerifyId:', response.emailVerifyId);
       message.success('验证码已发送到您的邮箱');
       
       // 开始倒计时
@@ -59,10 +68,30 @@ const Register: React.FC = () => {
   // 移除行为特征采集函数
 
   const onFinish = async (values: RegisterForm) => {
+    console.log('=== 注册表单提交调试信息 ===');
+    console.log('emailVerifyId:', emailVerifyId);
+    console.log('values.emailCode:', values.emailCode);
+    console.log('完整表单数据:', values);
+    
     if (!emailVerifyId) {
+      console.error('❌ emailVerifyId 为空');
       message.error('请先获取邮箱验证码');
       return;
     }
+
+    if (!values.emailCode) {
+      console.error('❌ emailCode 为空');
+      message.error('请输入邮箱验证码');
+      return;
+    }
+
+    if (!values.emailCode.trim()) {
+      console.error('❌ emailCode 只包含空格');
+      message.error('邮箱验证码不能为空');
+      return;
+    }
+    
+    console.log('✅ 验证码验证通过，准备发送注册请求');
 
     setLoading(true);
     try {
@@ -88,7 +117,8 @@ const Register: React.FC = () => {
         navigate('/login');
       }, 1500);
     } catch (error) {
-      handleApiError(error, '注册失败');
+      const errorMessage = handleApiError(error);
+      message.error(errorMessage || '注册失败');
     } finally {
       setLoading(false);
     }

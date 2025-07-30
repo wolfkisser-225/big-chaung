@@ -11,9 +11,9 @@ import (
 const (
 	QQ_SMTP_HOST = "smtp.qq.com"
 	QQ_SMTP_PORT = "587"
-	QQ_EMAIL    = "your-email@foxmail.com"    // 请替换为您的QQ邮箱
-	QQ_PASSWORD = "your-authorization-code"   // 请替换为您的QQ邮箱授权码
-	TO_EMAIL    = "test-recipient@example.com" // 请替换为测试收件人邮箱
+	QQ_EMAIL    = "chasemouzi@foxmail.com"    // QQ邮箱
+	QQ_PASSWORD = "kraycskbtdifbeje"   // QQ邮箱授权码
+	TO_EMAIL    = "ormisia1@gmail.com" // 测试收件人邮箱
 )
 
 func testQQEmail() {

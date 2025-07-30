@@ -43,12 +43,16 @@ func main() {
 	// 配置CORS
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowOrigins = []string{
-		"http://localhost:5173",
-		"http://localhost:5231",
-		"http://localhost:5177",
-		"http://localhost:5175",
-		cfg.FrontendURL,
-	}
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5231",
+    "http://localhost:5177",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
+    "https://b931ca1245a9.ngrok-free.app",
+    cfg.FrontendURL,
+  }
 	corsConfig.AllowCredentials = true
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}

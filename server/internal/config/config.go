@@ -31,7 +31,7 @@ func Load() *Config {
 		SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
 		SMTPPort:     smtpPort,
 		SMTPUser:     getEnv("SMTP_USER", ""),
-		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+		SMTPPassword: getEnv("SMTP_PASS", ""),
 	}
 }
 

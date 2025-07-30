@@ -6,7 +6,9 @@ class ApiClient {
   private token: string | null;
 
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1';
+    this.baseURL = import.meta.env.VITE_API_BASE_URL ? 
+      `${import.meta.env.VITE_API_BASE_URL}/api/v1` : 
+      'http://localhost:3001/api/v1';
     this.token = localStorage.getItem('auth_token');
   }
 
@@ -93,8 +95,8 @@ class ApiClient {
   }
 
   // 发送邮箱验证码
-  async sendEmailCode(data: { email: string; purpose: string }): Promise<{ message: string; verifyId: string }> {
-    return this.post<{ message: string; verifyId: string }>('/auth/send-email-code', data);
+  async sendEmailCode(data: { email: string; purpose: string }): Promise<{ message: string; emailVerifyId: string }> {
+    return this.post<{ message: string; emailVerifyId: string }>('/auth/send-email-code', data);
   }
 
   // 用户注册
