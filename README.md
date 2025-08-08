@@ -1,13 +1,21 @@
-# CTF 竞赛平台
+# 基于多模态行为特征的CTF动态Flag防作弊系统
 
-一个现代化的 CTF（Capture The Flag）网络安全竞赛平台，基于 React + TypeScript + Vite 构建。
+一个创新的网络安全竞赛平台，通过采集参赛者的多模态生物特征（如键击动态、鼠标轨迹等）作为flag生成的熵源，结合区块链技术实现不可篡改的唯一flag生成与验证系统。
 
 ## 🚀 项目简介
 
-本项目是一个功能完整的 CTF 竞赛平台，提供了完整的竞赛管理、题目管理、用户管理等功能。平台采用现代化的前端技术栈，具有良好的用户体验和可扩展性。
+本项目是基于多模态行为特征的CTF动态Flag防作弊系统，解决传统CTF平台存在的竞赛结果难以溯源、提交内容可能被篡改、抄袭等问题，保证竞赛的公开、公平、公正化。该平台面向网络安全教育机构、竞赛组织者和参赛学生，通过技术创新提升CTF竞赛的安全性与公平性。
 
-## ✨ 功能特色
+## ✨ 核心功能特色
 
+### 🔐 防作弊核心技术
+- 🧬 **多模态行为特征采集**：实时采集键击节奏、鼠标轨迹等生物特征
+- 🔗 **区块链验证**：基于区块链技术的不可篡改flag生成与验证
+- 🎯 **动态Flag生成**：基于个人行为特征的唯一flag生成
+- 🚨 **智能作弊检测**：实时行为分析和异常检测预警
+- 📊 **行为模板匹配**：与历史行为模板比对验证身份
+
+### 🏆 平台核心功能
 - 🏆 **竞赛管理**：支持创建和管理多种类型的 CTF 竞赛
 - 📝 **题目系统**：丰富的题目类型和分类管理
 - 👥 **用户系统**：完整的用户注册、登录、个人中心功能
@@ -18,6 +26,7 @@
 
 ## 🛠️ 技术栈
 
+### 前端技术
 - **前端框架**：React 18 + TypeScript
 - **构建工具**：Vite
 - **样式框架**：Tailwind CSS
@@ -25,6 +34,19 @@
 - **状态管理**：Zustand
 - **图标库**：Lucide React
 - **UI 组件**：自定义组件库
+
+### 后端技术
+- **后端语言**：Go (Golang)
+- **Web框架**：Gin
+- **数据库**：MySQL + Prisma ORM
+- **邮件服务**：SMTP邮件发送
+- **行为分析**：自研多模态特征提取算法
+
+### 部署技术
+- **容器化**：Docker + Docker Compose
+- **反向代理**：Nginx
+- **进程管理**：PM2
+- **CI/CD**：GitHub Actions
 
 ## 📋 环境要求
 
@@ -69,21 +91,42 @@ npm run dev
 
 ```
 big-chaung/
-├── src/                    # 源代码目录
-│   ├── components/         # 可复用组件
-│   ├── pages/             # 页面组件
-│   ├── hooks/             # 自定义 Hooks
-│   ├── utils/             # 工具函数
-│   ├── types/             # TypeScript 类型定义
-│   └── App.tsx            # 应用入口组件
-├── docs/                  # 项目文档
-│   ├── database-design.md         # 数据库设计文档
-│   ├── future-features-architecture.md  # 未来功能架构
-│   ├── deployment-guide.md        # 部署指南
-│   └── development-guide.md       # 开发指南
-├── public/                # 静态资源
-├── package.json           # 项目配置
-└── README.md             # 项目说明
+├── src/                           # 前端源代码目录
+│   ├── components/                # 可复用组件
+│   ├── pages/                    # 页面组件
+│   ├── hooks/                    # 自定义 Hooks
+│   ├── utils/                    # 工具函数
+│   ├── types/                    # TypeScript 类型定义
+│   ├── stores/                   # Zustand 状态管理
+│   ├── router/                   # 路由配置
+│   ├── generated/                # Prisma 生成的客户端代码
+│   └── App.tsx                   # 应用入口组件
+├── server/                       # 后端源代码目录
+│   ├── internal/                 # 内部模块
+│   │   ├── config/              # 配置管理
+│   │   ├── database/            # 数据库连接
+│   │   ├── handlers/            # HTTP 处理器
+│   │   ├── models/              # 数据模型
+│   │   ├── routes/              # 路由定义
+│   │   └── services/            # 业务逻辑服务
+│   ├── main.go                  # 后端入口文件
+│   ├── go.mod                   # Go 模块定义
+│   └── go.sum                   # Go 依赖锁定
+├── prisma/                      # 数据库配置
+│   └── schema.prisma            # 数据库模式定义
+├── docs/                        # 项目文档
+│   ├── database-design.md       # 数据库设计文档
+│   ├── deployment-guide.md      # 部署指南
+│   ├── development-guide.md     # 开发指南
+│   ├── collaboration-guide.md   # 协作指南
+│   └── testing-guide.md         # 测试指南
+├── public/                      # 静态资源
+├── .env                         # 环境变量配置
+├── docker-compose.yml           # Docker 编排配置
+├── Dockerfile                   # Docker 镜像构建
+├── package.json                 # 前端项目配置
+├── 基于多模态行为特征的CTF动态Flag防作弊系统-申报书-喻钧-刘登超.md  # 项目申报书
+└── README.md                    # 项目说明
 ```
 
 ## 📖 文档导航
@@ -99,8 +142,9 @@ big-chaung/
 
 ## 🔧 开发命令
 
+### 前端开发命令
 ```bash
-# 启动开发服务器
+# 启动前端开发服务器
 pnpm dev
 
 # 构建生产版本
@@ -117,6 +161,49 @@ pnpm format
 
 # 类型检查
 pnpm type-check
+```
+
+### 后端开发命令
+```bash
+# 启动后端服务器
+cd server
+go run main.go
+
+# 构建后端可执行文件
+go build -o ctf-platform main.go
+
+# 运行测试
+go test ./...
+
+# 安装依赖
+go mod tidy
+```
+
+### 数据库命令
+```bash
+# 生成 Prisma 客户端
+npx prisma generate
+
+# 数据库迁移
+npx prisma db push
+
+# 查看数据库
+npx prisma studio
+```
+
+### Docker 命令
+```bash
+# 构建并启动所有服务
+docker-compose up -d
+
+# 停止所有服务
+docker-compose down
+
+# 查看服务日志
+docker-compose logs -f
+
+# 重新构建镜像
+docker-compose build
 ```
 
 ## 🌟 主要功能模块

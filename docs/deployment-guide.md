@@ -2,7 +2,194 @@
 
 ## 概述
 
-本指南将帮助您在不同环境中部署 CTF 平台，包括开发环境、测试环境和生产环境。
+本指南将帮助您在不同环境中部署基于多模态行为特征的CTF动态Flag防作弊系统，包括开发环境、测试环境和生产环境。支持传统部署和Docker容器化部署两种方式。
+
+## 部署方式选择
+
+- **Docker部署（推荐）**：适合生产环境，提供完整的容器化解决方案
+- **传统部署**：适合开发环境和自定义部署需求
+- **混合部署**：前端使用CDN，后端使用容器化部署
+
+## Docker 容器化部署（推荐）
+
+### 前置条件
+
+- Docker Engine 20.10+
+- Docker Compose 2.0+
+- 至少 4GB 可用内存
+- 至少 10GB 可用磁盘空间
+
+### 快速启动
+
+1. **克隆项目**
+   ```bash
+   git clone <repository-url>
+   cd big-chaung
+   ```
+
+2. **配置环境变量**
+   ```bash
+   # 复制环境变量模板
+   cp .env.example .env
+   
+   # 编辑环境变量（重要：修改数据库密码、JWT密钥等）
+   nano .env
+   ```
+
+3. **启动所有服务**
+   ```bash
+   # 构建并启动所有服务
+   docker-compose up -d
+   
+   # 查看服务状态
+   docker-compose ps
+   
+   # 查看日志
+   docker-compose logs -f
+   ```
+
+4. **初始化数据库**
+   ```bash
+   # 等待数据库启动后执行数据库迁移
+   docker-compose exec backend npx prisma db push
+   
+   # 生成 Prisma 客户端
+   docker-compose exec backend npx prisma generate
+   ```
+
+5. **访问应用**
+   - 前端应用：http://localhost
+   - 后端API：http://localhost:8080
+   - 数据库管理：http://localhost:8081 (Adminer)
+
+### Docker 服务说明
+
+| 服务名 | 端口 | 说明 |
+|--------|------|------|
+| frontend | 80, 443 | Nginx + React 前端应用 |
+| backend | 8080 | Go 后端 API 服务 |
+| mysql | 3306 | MySQL 8.0 数据库 |
+| redis | 6379 | Redis 缓存服务 |
+| adminer | 8081 | 数据库管理工具 |
+
+### 生产环境配置
+
+#### 环境变量配置
+
+**重要安全配置**：
+```env
+# 数据库安全配置
+DB_ROOT_PASSWORD=your_very_strong_root_password
+DB_PASSWORD=your_strong_database_password
+
+# JWT 安全配置
+JWT_SECRET=your_very_long_and_random_jwt_secret_key
+
+# 邮件服务配置
+EMAIL_HOST=smtp.your-domain.com
+EMAIL_USER=noreply@your-domain.com
+EMAIL_PASSWORD=your_email_password
+
+# CORS 配置
+CORS_ALLOWED_ORIGINS=https://your-domain.com
+```
+
+#### SSL/HTTPS 配置
+
+1. **获取 SSL 证书**
+   ```bash
+   # 使用 Let's Encrypt
+   certbot certonly --webroot -w /var/www/html -d your-domain.com
+   ```
+
+2. **配置 SSL 证书**
+   ```bash
+   # 创建 SSL 目录
+   mkdir -p nginx/ssl
+   
+   # 复制证书文件
+   cp /etc/letsencrypt/live/your-domain.com/fullchain.pem nginx/ssl/cert.pem
+   cp /etc/letsencrypt/live/your-domain.com/privkey.pem nginx/ssl/key.pem
+   ```
+
+3. **更新 Nginx 配置**
+   编辑 `nginx/nginx.conf`，取消注释 HTTPS 配置部分。
+
+#### 数据备份
+
+```bash
+# 数据库备份
+docker-compose exec mysql mysqldump -u root -p ctf_platform > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# 数据恢复
+docker-compose exec -i mysql mysql -u root -p ctf_platform < backup_file.sql
+
+# 文件备份
+docker-compose exec backend tar -czf /app/backup_files_$(date +%Y%m%d_%H%M%S).tar.gz /app/uploads
+```
+
+#### 监控和日志
+
+```bash
+# 查看服务状态
+docker-compose ps
+
+# 查看资源使用情况
+docker stats
+
+# 查看特定服务日志
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# 清理日志
+docker-compose logs --tail=0 -f
+```
+
+#### 更新部署
+
+```bash
+# 拉取最新代码
+git pull origin main
+
+# 重新构建并启动服务
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+
+# 执行数据库迁移（如有需要）
+docker-compose exec backend npx prisma db push
+```
+
+### 故障排除
+
+#### 常见问题
+
+1. **数据库连接失败**
+   ```bash
+   # 检查数据库服务状态
+   docker-compose logs mysql
+   
+   # 检查网络连接
+   docker-compose exec backend ping mysql
+   ```
+
+2. **前端无法访问后端**
+   ```bash
+   # 检查后端服务状态
+   docker-compose logs backend
+   
+   # 检查 Nginx 配置
+   docker-compose exec frontend nginx -t
+   ```
+
+3. **内存不足**
+   ```bash
+   # 查看内存使用情况
+   docker stats
+   
+   # 清理未使用的镜像和容器
+   docker system prune -a
+   ```
 
 ## 开发环境部署
 
@@ -18,7 +205,16 @@
    cd big-chaung
    ```
 
-2. **安装依赖**
+2. **配置环境变量**
+   ```bash
+   # 复制环境变量模板
+   cp .env.example .env
+   
+   # 编辑环境变量
+   nano .env
+   ```
+
+3. **安装前端依赖**
    ```bash
    # 使用 pnpm (推荐)
    pnpm install
@@ -27,8 +223,32 @@
    npm install
    ```
 
-3. **启动开发服务器**
+4. **生成 Prisma 客户端**
    ```bash
+   npx prisma generate
+   ```
+
+5. **启动数据库（可选，使用 Docker）**
+   ```bash
+   # 仅启动数据库服务
+   docker-compose up -d mysql redis
+   ```
+
+6. **启动后端服务**
+   ```bash
+   # 进入后端目录
+   cd server
+   
+   # 安装 Go 依赖
+   go mod tidy
+   
+   # 启动后端服务
+   go run main.go
+   ```
+
+7. **启动前端开发服务器**
+   ```bash
+   # 在项目根目录
    # 使用 pnpm
    pnpm dev
    
@@ -36,41 +256,65 @@
    npm run dev
    ```
 
-4. **访问应用**
-   - 打开浏览器访问: [http://localhost:5173](http://localhost:5173)
+8. **访问应用**
+   - 前端应用：[http://localhost:5173](http://localhost:5173)
+   - 后端API：[http://localhost:8080](http://localhost:8080)
    - 开发服务器支持热重载，修改代码后会自动刷新
 
 ### 开发环境配置
 
 #### 环境变量
 
-创建 `.env.local` 文件（开发环境）：
+创建 `.env` 文件（开发环境）：
 
 ```env
-# 应用配置
-VITE_APP_TITLE=CTF平台
-VITE_APP_VERSION=1.0.0
+# 数据库配置
+DATABASE_URL="mysql://ctf_user:ctf_pass_2024@localhost:3306/ctf_platform"
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=ctf_platform
+DB_USER=ctf_user
+DB_PASSWORD=ctf_pass_2024
 
-# API 配置
-VITE_API_BASE_URL=http://localhost:3001/api/v1
-VITE_WS_URL=ws://localhost:3001
+# Redis 配置
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# JWT 配置
+JWT_SECRET=your_jwt_secret_key_for_development
+JWT_EXPIRES_IN=24h
+
+# 邮件配置（参考 EMAIL_SETUP.md）
+EMAIL_HOST=smtp.qq.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@qq.com
+EMAIL_PASSWORD=your-email-app-password
+EMAIL_FROM=your-email@qq.com
+
+# 服务器配置
+SERVER_HOST=localhost
+SERVER_PORT=8080
+SERVER_MODE=development
+
+# 前端配置
+VITE_API_BASE_URL=http://localhost:8080/api
+VITE_WS_BASE_URL=ws://localhost:8080/ws
+VITE_APP_TITLE=CTF防作弊平台
+VITE_APP_VERSION=1.0.0
 
 # 功能开关
 VITE_ENABLE_BEHAVIOR_TRACKING=true
 VITE_ENABLE_BLOCKCHAIN=false
 VITE_ENABLE_DEBUG=true
+BEHAVIOR_COLLECTION_ENABLED=true
 
-# 第三方服务（开发环境可选）
-VITE_BLOCKCHAIN_NETWORK=localhost
-VITE_BLOCKCHAIN_CONTRACT_ADDRESS=
+# CORS 配置
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 
-# 邮件服务配置（生产环境必需）
-# 参考 EMAIL_SETUP.md 配置邮件服务
-# SMTP_HOST=smtp.qq.com
-# SMTP_PORT=587
-# SMTP_USER=your-email@qq.com
-# SMTP_PASS=your-authorization-code
-# SMTP_FROM=your-email@qq.com
+# 日志配置
+LOG_LEVEL=debug
+LOG_FORMAT=text
+LOG_OUTPUT=stdout
 ```
 
 #### 开发工具配置
